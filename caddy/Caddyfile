@@ -1,0 +1,62 @@
+{
+	email postmaster@cookai-inc.com
+}
+
+(security_headers) {
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), geolocation=(), microphone=()"
+	}
+}
+
+(stalwart_backend) {
+	import security_headers
+	encode zstd gzip
+	@stalwart_admin path /admin /admin/*
+	respond @stalwart_admin 404
+	reverse_proxy https://stalwart:443 {
+		header_up Host {host}
+		transport http {
+			tls_server_name mail.cookai-inc.com
+		}
+	}
+}
+
+http://mail.cookai-inc.com, http://autoconfig.cookai-inc.com, http://autodiscover.cookai-inc.com, http://mta-sts.cookai-inc.com, http://ua-auto-config.cookai-inc.com {
+	route {
+		reverse_proxy /.well-known/acme-challenge/* http://stalwart:8080
+		redir https://{host}{uri} permanent
+	}
+}
+
+mail.cookai-inc.com {
+	import stalwart_backend
+}
+
+autoconfig.cookai-inc.com {
+	import stalwart_backend
+}
+
+autodiscover.cookai-inc.com {
+	import stalwart_backend
+}
+
+mta-sts.cookai-inc.com {
+	import stalwart_backend
+}
+
+ua-auto-config.cookai-inc.com {
+	import stalwart_backend
+}
+
+email.cookai-inc.com {
+	import security_headers
+	encode zstd gzip
+	@email_admin path /admin /admin/* /api/admin /api/admin/* /*/admin /*/admin/*
+	respond @email_admin 404
+	reverse_proxy bulwark:3000
+}

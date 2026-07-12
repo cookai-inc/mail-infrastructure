@@ -1,0 +1,145 @@
+---
+name: cookai-mail
+
+services:
+  stalwart:
+    image: "stalwartlabs/stalwart:v0.16.12@sha256:\
+      b30c99ed8240ea42612f784babe0388318d5c3668a77873efe7e3b1147e2226e"
+    platform: linux/amd64
+    restart: unless-stopped
+    init: true
+    env_file:
+      - /etc/cookai-mail/stalwart.env
+    ports:
+      - "25:25"
+      - "465:465"
+      - "587:587"
+      - "993:993"
+      - "127.0.0.1:8080:8080"
+    expose:
+      - "443"
+    volumes:
+      - stalwart-config:/etc/stalwart
+      - stalwart-data:/var/lib/stalwart
+    networks:
+      mail:
+        aliases:
+          - mail.cookai-inc.com
+    healthcheck:
+      test:
+        - CMD
+        - curl
+        - --fail
+        - --silent
+        - --insecure
+        - --header
+        - "X-Forwarded-For: 127.0.0.1"
+        - https://127.0.0.1:443/healthz/live
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    pids_limit: 256
+    mem_limit: 1100m
+    memswap_limit: 1800m
+
+  bulwark:
+    image: "ghcr.io/bulwarkmail/webmail:1.7.7@sha256:\
+      8c93a6af6abf1b0e6595015dd8236ad83c4cbb2a1dce51966deaecb4d93ffeea"
+    platform: linux/amd64
+    restart: unless-stopped
+    init: true
+    env_file:
+      - /etc/cookai-mail/bulwark.env
+    ports:
+      - "127.0.0.1:3000:3000"
+    expose:
+      - "3000"
+    volumes:
+      - bulwark-settings:/app/data/settings
+      - bulwark-config:/app/data/admin:ro
+      - bulwark-state:/app/data/admin-state
+      - bulwark-telemetry:/app/data/telemetry
+    networks:
+      - mail
+    secrets:
+      - bulwark-session
+    depends_on:
+      stalwart:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - http://127.0.0.1:3000/api/health
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 192
+    mem_limit: 512m
+    memswap_limit: 768m
+
+  caddy:
+    image: "caddy:2.11.4-alpine@sha256:\
+      5f5c8640aae01df9654968d946d8f1a56c497f1dd5c5cda4cf95ab7c14d58648"
+    platform: linux/amd64
+    restart: unless-stopped
+    init: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy:/etc/caddy:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - mail
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --no-verbose
+        - --tries=1
+        - --spider
+        - http://127.0.0.1:2019/config/
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    pids_limit: 128
+    mem_limit: 192m
+    memswap_limit: 256m
+
+volumes:
+  stalwart-config:
+  stalwart-data:
+  bulwark-settings:
+  bulwark-config:
+  bulwark-state:
+  bulwark-telemetry:
+  caddy-data:
+  caddy-config:
+
+networks:
+  mail:
+    ipam:
+      config:
+        - subnet: 172.30.40.0/24
+
+secrets:
+  bulwark-session:
+    file: /etc/cookai-mail/secrets/bulwark-session

@@ -1,0 +1,28 @@
+[Unit]
+Description=Encrypted off-host backup of CookAI mail
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+ConditionPathExists=/etc/cookai-mail/backup.env
+
+[Service]
+Type=oneshot
+ExecStart=/opt/cookai-mail/scripts/backup.sh
+TimeoutStartSec=6h
+UMask=0077
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectControlGroups=true
+ProtectHome=read-only
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectSystem=strict
+ReadWritePaths=/var/cache/cookai-mail-backup
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+[Install]
+WantedBy=multi-user.target

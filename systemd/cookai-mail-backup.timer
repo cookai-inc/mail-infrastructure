@@ -1,0 +1,11 @@
+[Unit]
+Description=Nightly encrypted off-host backup of CookAI mail
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 UTC
+RandomizedDelaySec=30m
+Persistent=true
+Unit=cookai-mail-backup.service
+
+[Install]
+WantedBy=timers.target
