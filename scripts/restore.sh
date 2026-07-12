@@ -103,6 +103,7 @@ jq --exit-status '
 	(.compose_project | type == "string") and
 	(.compose_sha256 | test("^[0-9a-f]{64}$")) and
 	(.deployment_sha256 | test("^[0-9a-f]{64}$")) and
+	(.provider_tiles == null or .provider_tiles == true) and
 	(.volumes | type == "array" and length > 0)
 ' "$manifest_path" >/dev/null || fail 'The restored manifest is invalid.'
 
@@ -117,6 +118,11 @@ restored_volume_list=$(printf '%s\n' "${restored_volumes[@]}")
 
 [[ -d $restored_root/etc/cookai-mail ]] || fail 'Snapshot does not contain /etc/cookai-mail.'
 [[ -d $restored_root/opt/cookai-mail ]] || fail 'Snapshot does not contain the deployment files.'
+provider_tiles_included=$(jq --raw-output '.provider_tiles // false' "$manifest_path")
+if [[ $provider_tiles_included == true ]]; then
+	[[ -d $restored_root/srv/provider-dashboard/tiles ]] || fail 'Snapshot does not contain the provider map tiles.'
+	find "$restored_root/srv/provider-dashboard/tiles" -maxdepth 1 -type f -name '*.pmtiles' -print -quit | grep --quiet . || fail 'Snapshot contains no complete provider PMTiles archive.'
+fi
 for logical_volume in "${expected_volumes[@]}"; do
 	[[ -d $restored_root/volumes/$logical_volume ]] || fail "Snapshot is missing volume: $logical_volume"
 done
@@ -149,6 +155,18 @@ fi
 
 install -d -m 0700 /etc/cookai-mail
 rsync --archive --hard-links --acls --xattrs --sparse --numeric-ids --delete -- "$restored_root/etc/cookai-mail/" /etc/cookai-mail/
+if [[ $provider_tiles_included == true ]]; then
+	install -d -m 0755 /srv/provider-dashboard/tiles
+	rsync \
+		--archive \
+		--hard-links \
+		--acls \
+		--xattrs \
+		--sparse \
+		--numeric-ids \
+		--delete \
+		-- "$restored_root/srv/provider-dashboard/tiles/" /srv/provider-dashboard/tiles/
+fi
 compose config --quiet
 compose down --remove-orphans
 compose create

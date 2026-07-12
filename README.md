@@ -127,6 +127,6 @@ Container image versions and Linux AMD64 digests are pinned. Upgrades are delibe
 
 ## Backups
 
-Nightly backups are encrypted before leaving the host and sent to an operator-owned off-host Restic repository. The backup covers `/etc/cookai-mail`, the deployed stack, and every Compose named volume. Stalwart is stopped only for the final local RocksDB reconciliation and is restarted before upload, retention, and repository validation.
+Nightly backups are encrypted before leaving the host and sent to an operator-owned off-host Restic repository. The backup covers `/etc/cookai-mail`, the deployed stack, every Compose named volume, and the pinned provider PMTiles archive. Stalwart is stopped only for the final local RocksDB reconciliation and is restarted before upload, retention, and repository validation.
 
 Setup, recovery, and disaster-recovery rehearsal instructions are in [docs/backup-restore.md](docs/backup-restore.md). The Restic password and storage credentials must be stored under `/etc/cookai-mail` with root-only permissions and must never be committed.
