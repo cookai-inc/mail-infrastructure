@@ -79,12 +79,13 @@ Production mounts the Bulwark administrator configuration read-only and blocks `
 The provider dashboard is built and deployed from `cookai-inc/provider-operations`. Its forced-command deploy user
 writes versioned releases below `/srv/provider-dashboard` and atomically changes the `current` symlink. Set
 `PROVIDER_DASHBOARD_PASSWORD_HASH` in `/etc/cookai-mail/caddy.env` to a Caddy-compatible hash; the plaintext dashboard
-password belongs only in the operator secret store. Caddy authenticates every dashboard asset and marks responses
-private and non-cacheable.
+password belongs only in the operator secret store. Caddy authenticates every dashboard asset, applies a dashboard-only
+Content Security Policy, and marks application responses private and non-cacheable.
 
 Pinned PMTiles archives live below `/srv/provider-dashboard/tiles` and are served through the same authenticated
 origin. They remain outside immutable dashboard releases so a routine dashboard deployment cannot remove the map
-dataset selected by the dashboard build.
+dataset selected by the dashboard build. Their versioned URLs use a private immutable browser cache; shared edge caches
+cannot store an authenticated response.
 
 When the restricted deployment account is installed, keep it in the SSH allowlist without granting sudo or Docker:
 

@@ -67,13 +67,15 @@ providers.cookai-inc.com {
 	basic_auth {
 		andrii {$PROVIDER_DASHBOARD_PASSWORD_HASH}
 	}
-	header Cache-Control "private, no-store"
+	header Content-Security-Policy "default-src 'self'; connect-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
 	@provider_tiles path /tiles/*
 	handle @provider_tiles {
+		header Cache-Control "private, max-age=31536000, immutable"
 		root * /srv/provider-dashboard
 		file_server
 	}
 	handle {
+		header Cache-Control "private, no-store"
 		root * /srv/provider-dashboard/current
 		try_files {path} /index.html
 		file_server
