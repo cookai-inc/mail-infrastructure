@@ -2,12 +2,13 @@
 
 Self-hosted company mail for `cookai-inc.com`.
 
-The stack uses Stalwart for SMTP, IMAP, JMAP, account administration, filtering, and storage; Bulwark for webmail; and Caddy for HTTPS termination. It does not build or serve a custom CookAI frontend or application server. Public mail protocols connect directly to Stalwart so the original peer address is preserved.
+The stack uses Stalwart for SMTP, IMAP, JMAP, account administration, filtering, and storage; Bulwark for webmail; and Caddy for HTTPS termination. Caddy also serves the separately built, authenticated provider-operations dashboard from an immutable host directory. Public mail protocols connect directly to Stalwart so the original peer address is preserved.
 
 ## Public services
 
 - `https://email.cookai-inc.com` — webmail
 - `https://mail.cookai-inc.com` — JMAP and client auto-configuration
+- `https://providers.cookai-inc.com` — authenticated provider-operations dashboard
 - `mail.cookai-inc.com:25` — server-to-server SMTP
 - `mail.cookai-inc.com:465` — implicit TLS submission
 - `mail.cookai-inc.com:587` — STARTTLS submission
@@ -35,9 +36,15 @@ The host keeps runtime configuration under `/etc/cookai-mail`, while the deploym
 sudo install -d -m 700 /etc/cookai-mail/secrets
 sudo install -m 600 stalwart.env.example /etc/cookai-mail/stalwart.env
 sudo install -m 600 bulwark.env.example /etc/cookai-mail/bulwark.env
+read -r -s -p 'Provider dashboard password: ' PROVIDER_DASHBOARD_PASSWORD
+printf '\n'
+PROVIDER_DASHBOARD_PASSWORD_HASH="$(printf '%s\n' "$PROVIDER_DASHBOARD_PASSWORD" | sudo docker run --rm -i caddy:2.11.4-alpine caddy hash-password --algorithm bcrypt)"
+printf 'PROVIDER_DASHBOARD_PASSWORD_HASH=%s\n' "$PROVIDER_DASHBOARD_PASSWORD_HASH" | sudo install -m 600 /dev/stdin /etc/cookai-mail/caddy.env
+unset PROVIDER_DASHBOARD_PASSWORD PROVIDER_DASHBOARD_PASSWORD_HASH
 sudo openssl rand -hex -out /etc/cookai-mail/secrets/bulwark-session 48
 sudo chmod 600 /etc/cookai-mail/secrets/bulwark-session
 sudo docker compose pull
+sudo docker compose run --rm --no-deps caddy caddy validate --config /etc/caddy/Caddyfile
 sudo docker compose up -d caddy stalwart
 ```
 
@@ -68,6 +75,18 @@ sudo docker compose up -d
 ```
 
 Production mounts the Bulwark administrator configuration read-only and blocks `/admin` and `/api/admin` at the public proxy. For later administration, tunnel the loopback-only Bulwark port over SSH and use `http://127.0.0.1:3000/admin`. Long-lived credentials and API tokens are never committed.
+
+The provider dashboard is built and deployed from `cookai-inc/provider-operations`. Its forced-command deploy user
+writes versioned releases below `/srv/provider-dashboard` and atomically changes the `current` symlink. Set
+`PROVIDER_DASHBOARD_PASSWORD_HASH` in `/etc/cookai-mail/caddy.env` to a Caddy-compatible hash; the plaintext dashboard
+password belongs only in the operator secret store. Caddy authenticates every dashboard asset and marks responses
+private and non-cacheable.
+
+When the restricted deployment account is installed, keep it in the SSH allowlist without granting sudo or Docker:
+
+```bash
+sudo ./scripts/harden-host-access.sh lockdown chelokot provider-dashboard
+```
 
 The initial MX switch is permitted only after the host has a matching PTR, direct outbound TCP/25 succeeds, all DNS authentication records resolve, and external send/receive tests pass.
 

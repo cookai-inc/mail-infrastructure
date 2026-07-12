@@ -6,19 +6,27 @@ if [[ $EUID -ne 0 ]]; then
 	exit 1
 fi
 
-if [[ $# -ne 2 ]]; then
-	printf 'Usage: %s <prepare|lockdown> <admin-username>\n' "$0" >&2
+if [[ $# -lt 2 ]]; then
+	printf 'Usage: %s <prepare|lockdown> <admin-username> [additional-allowed-user ...]\n' "$0" >&2
 	exit 1
 fi
 
 mode=$1
 admin_username=$2
-if [[ ! $admin_username =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
-	printf 'Invalid admin username: %s\n' "$admin_username" >&2
-	exit 1
-fi
+shift 2
+additional_allowed_users=("$@")
+for username in "$admin_username" "${additional_allowed_users[@]}"; do
+	if [[ ! $username =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+		printf 'Invalid username: %s\n' "$username" >&2
+		exit 1
+	fi
+done
 
 prepare_admin() {
+	if ((${#additional_allowed_users[@]} > 0)); then
+		printf 'Additional allowed users apply only to lockdown mode.\n' >&2
+		exit 1
+	fi
 	IFS= read -r public_key
 	if [[ ! $public_key =~ ^ssh-(ed25519|rsa)[[:space:]] ]]; then
 		printf 'A valid SSH public key is required on standard input.\n' >&2
@@ -49,6 +57,9 @@ prepare_admin() {
 
 lock_down_sshd() {
 	id "$admin_username" >/dev/null
+	for username in "${additional_allowed_users[@]}"; do
+		id "$username" >/dev/null
+	done
 	admin_home=$(getent passwd "$admin_username" | cut -d: -f6)
 	test -s "$admin_home/.ssh/authorized_keys"
 
@@ -68,7 +79,7 @@ GatewayPorts no
 PermitTunnel no
 ClientAliveInterval 300
 ClientAliveCountMax 2
-AllowUsers $admin_username
+AllowUsers $admin_username ${additional_allowed_users[*]}
 EOF
 	install -m 0644 "$temporary_config" /etc/ssh/sshd_config.d/00-cookai-hardening.conf
 	sshd -t

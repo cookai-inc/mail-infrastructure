@@ -93,11 +93,14 @@ services:
     platform: linux/amd64
     restart: unless-stopped
     init: true
+    env_file:
+      - /etc/cookai-mail/caddy.env
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./caddy:/etc/caddy:ro
+      - /srv/provider-dashboard:/srv/provider-dashboard:ro
       - caddy-data:/data
       - caddy-config:/config
     networks:
