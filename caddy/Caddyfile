@@ -60,3 +60,15 @@ email.cookai-inc.com {
 	respond @email_admin 404
 	reverse_proxy bulwark:3000
 }
+
+providers.cookai-inc.com {
+	import security_headers
+	encode zstd gzip
+	basic_auth {
+		andrii {$PROVIDER_DASHBOARD_PASSWORD_HASH}
+	}
+	header Cache-Control "private, no-store"
+	root * /srv/provider-dashboard/current
+	try_files {path} /index.html
+	file_server
+}
