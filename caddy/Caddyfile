@@ -68,7 +68,14 @@ providers.cookai-inc.com {
 		andrii {$PROVIDER_DASHBOARD_PASSWORD_HASH}
 	}
 	header Cache-Control "private, no-store"
-	root * /srv/provider-dashboard/current
-	try_files {path} /index.html
-	file_server
+	@provider_tiles path /tiles/*
+	handle @provider_tiles {
+		root * /srv/provider-dashboard
+		file_server
+	}
+	handle {
+		root * /srv/provider-dashboard/current
+		try_files {path} /index.html
+		file_server
+	}
 }

@@ -82,6 +82,10 @@ writes versioned releases below `/srv/provider-dashboard` and atomically changes
 password belongs only in the operator secret store. Caddy authenticates every dashboard asset and marks responses
 private and non-cacheable.
 
+Pinned PMTiles archives live below `/srv/provider-dashboard/tiles` and are served through the same authenticated
+origin. They remain outside immutable dashboard releases so a routine dashboard deployment cannot remove the map
+dataset selected by the dashboard build.
+
 When the restricted deployment account is installed, keep it in the SSH allowlist without granting sudo or Docker:
 
 ```bash
