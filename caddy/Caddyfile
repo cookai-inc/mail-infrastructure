@@ -13,6 +13,18 @@
 	}
 }
 
+(cookai_web_headers) {
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(self), geolocation=(self), microphone=(), payment=(), usb=(), browsing-topics=()"
+		Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co https://http2.mlstatic.com https://thumbnail.image.rakuten.co.jp https://item-shopping.c.yimg.jp; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://openrouter.ai"
+	}
+}
+
 (stalwart_backend) {
 	import security_headers
 	encode zstd gzip
@@ -80,4 +92,45 @@ providers.cookai-inc.com {
 		try_files {path} /index.html
 		file_server
 	}
+}
+
+cookai-inc.com {
+	import cookai_web_headers
+	encode zstd gzip
+	root * /srv/cookai-web/current
+	@immutable {
+		path /_expo/static/* /assets/*
+		file
+	}
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+	@private path /recipe/* /shop/* /shopping/* /commerce/* /orders /settings /upload /camera
+	header @private X-Robots-Tag "noindex, nofollow"
+	redir /.well-known/change-password /auth 302
+	redir /privacy /privacy/ permanent
+	redir /terms /terms/ permanent
+	@page file {path}.html {path}/index.html {path}
+	rewrite @page {file_match.relative}
+	@recipe path_regexp ^/recipe/[^/]+$
+	rewrite @recipe /recipe/[id].html
+	@shop path_regexp ^/shop/[^/]+$
+	rewrite @shop /shop/[id].html
+	@shopping path_regexp ^/shopping/[^/]+$
+	rewrite @shopping /shopping/[id].html
+	@commerce_connect path_regexp ^/commerce/connect/[^/]+$
+	rewrite @commerce_connect /commerce/connect/[providerId].html
+	@commerce path_regexp ^/commerce/[^/]+$
+	rewrite @commerce /commerce/[id].html
+	@hosting_rules path /_headers /_redirects
+	respond @hosting_rules 404
+	file_server
+	handle_errors 404 {
+		import cookai_web_headers
+		rewrite * /+not-found.html
+		file_server
+	}
+}
+
+www.cookai-inc.com {
+	import security_headers
+	redir https://cookai-inc.com{uri} permanent
 }

@@ -101,6 +101,7 @@ services:
     volumes:
       - ./caddy:/etc/caddy:ro
       - /srv/provider-dashboard:/srv/provider-dashboard:ro
+      - /srv/cookai-web:/srv/cookai-web:ro
       - caddy-data:/data
       - caddy-config:/config
     networks:
