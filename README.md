@@ -87,10 +87,19 @@ origin. They remain outside immutable dashboard releases so a routine dashboard 
 dataset selected by the dashboard build. Their versioned URLs use a private immutable browser cache; shared edge caches
 cannot store an authenticated response.
 
-When the restricted deployment account is installed, keep it in the SSH allowlist without granting sudo or Docker:
+The public website at `cookai-inc.com` is the static web export of `cookai-inc/CookAI`. Its forced-command `cookai-web`
+deploy user writes versioned releases below `/srv/cookai-web` and atomically changes the `current` symlink. Caddy serves
+the release with the security headers, caching, `noindex` paths and redirects that CookAI declares in
+`apps/mobile/public/_headers` and `_redirects`, rewrites the export's dynamic routes to their prerendered templates, and
+answers unknown paths with the export's 404 page. The CookAI deployment verifies the live site against those two files,
+so change the `cookai-inc.com` block together with them. `www.cookai-inc.com` redirects to the apex. Both names are
+proxied through Cloudflare and obtain HTTP-01 certificates like the dashboard.
+
+When the restricted deployment accounts are installed, keep them in the SSH allowlist without granting sudo or Docker.
+The allowlist also keeps the `home-relay` account the home server uses for its reverse SSH tunnel:
 
 ```bash
-sudo ./scripts/harden-host-access.sh lockdown chelokot provider-dashboard
+sudo ./scripts/harden-host-access.sh lockdown chelokot provider-dashboard home-relay cookai-web
 ```
 
 The initial MX switch is permitted only after the host has a matching PTR, direct outbound TCP/25 succeeds, all DNS authentication records resolve, and external send/receive tests pass.
