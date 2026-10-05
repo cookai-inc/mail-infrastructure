@@ -82,11 +82,6 @@ writes versioned releases below `/srv/provider-dashboard` and atomically changes
 password belongs only in the operator secret store. Caddy authenticates every dashboard asset, applies a dashboard-only
 Content Security Policy, and marks application responses private and non-cacheable.
 
-Pinned PMTiles archives live below `/srv/provider-dashboard/tiles` and are served through the same authenticated
-origin. They remain outside immutable dashboard releases so a routine dashboard deployment cannot remove the map
-dataset selected by the dashboard build. Their versioned URLs use a private immutable browser cache; shared edge caches
-cannot store an authenticated response.
-
 The public website at `cookai-inc.com` is the static web export of `cookai-inc/CookAI`. Its forced-command `cookai-web`
 deploy user writes versioned releases below `/srv/cookai-web` and atomically changes the `current` symlink. Caddy serves
 the release with the security headers, caching, `noindex` paths and redirects that CookAI declares in
@@ -137,6 +132,6 @@ Container image versions and Linux AMD64 digests are pinned. Upgrades are delibe
 
 ## Backups
 
-Nightly backups are encrypted before leaving the host and sent to an operator-owned off-host Restic repository. The backup covers `/etc/cookai-mail`, the deployed stack, every Compose named volume, and the pinned provider PMTiles archive. Stalwart is stopped only for the final local RocksDB reconciliation and is restarted before upload, retention, and repository validation.
+Nightly backups are encrypted before leaving the host and sent to an operator-owned off-host Restic repository. The backup covers `/etc/cookai-mail`, the deployed stack, and every Compose named volume. Stalwart is stopped only for the final local RocksDB reconciliation and is restarted before upload, retention, and repository validation.
 
 Setup, recovery, and disaster-recovery rehearsal instructions are in [docs/backup-restore.md](docs/backup-restore.md). The Restic password and storage credentials must be stored under `/etc/cookai-mail` with root-only permissions and must never be committed.

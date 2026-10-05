@@ -2,7 +2,7 @@
 
 Nightly backups use Restic, whose repository format encrypts file contents, names, metadata, and snapshots before they leave the host. The repository must be off-host. A private S3-compatible bucket with a key restricted to that bucket is the simplest target for this VPS; the configuration also accepts Restic's native SFTP, B2, Azure, Google Cloud Storage, or TLS-protected REST backends.
 
-The backup includes `/etc/cookai-mail`, the deployment files from `/opt/cookai-mail`, every named volume declared by Compose, and complete PMTiles archives from `/srv/provider-dashboard/tiles`. Partial map downloads are excluded. It first creates a warm local mirror. Stalwart is then stopped, the mirror is reconciled, and Stalwart is immediately restarted before the encrypted upload begins. This produces a consistent raw RocksDB backup while keeping the SMTP interruption to the final local delta copy. A root-only staging directory is removed on success and failure.
+The backup includes `/etc/cookai-mail`, the deployment files from `/opt/cookai-mail`, and every named volume declared by Compose. It first creates a warm local mirror. Stalwart is then stopped, the mirror is reconciled, and Stalwart is immediately restarted before the encrypted upload begins. This produces a consistent raw RocksDB backup while keeping the SMTP interruption to the final local delta copy. A root-only staging directory is removed on success and failure.
 
 Restic keeps seven daily, five weekly, and twelve monthly snapshots by default. Each run prunes expired data, validates repository metadata, and reads a rotating fraction of the encrypted packs so the complete repository is covered over the configured number of days.
 
@@ -43,7 +43,7 @@ sudo /opt/cookai-mail/scripts/restore.sh --snapshot latest --target /var/tmp/coo
 sudo rm -rf /var/tmp/cookai-mail-restore-test
 ```
 
-For a full disaster-recovery rehearsal, provision an isolated VPS with no public DNS pointed at it, install Docker and the deployment revision recorded in the restored `opt/cookai-mail` directory, restore the snapshot, start the stack, and verify the Stalwart health endpoint, domains, accounts, mailboxes, queued mail, Bulwark login, TLS state, and a ranged read from the restored PMTiles archive. Never expose the rehearsal SMTP listener publicly while it contains production identities and queued messages.
+For a full disaster-recovery rehearsal, provision an isolated VPS with no public DNS pointed at it, install Docker and the deployment revision recorded in the restored `opt/cookai-mail` directory, restore the snapshot, start the stack, and verify the Stalwart health endpoint, domains, accounts, mailboxes, queued mail, Bulwark login, and TLS state. Never expose the rehearsal SMTP listener publicly while it contains production identities and queued messages.
 
 ## Destructive restore
 
