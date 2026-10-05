@@ -6,11 +6,8 @@ script_directory=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 source "$script_directory/lib/backup-common.sh"
 
 require_root
-require_commands docker restic rsync jq flock sha256sum tar du df sync find
+require_commands docker restic rsync jq flock sha256sum tar du df sync
 load_backup_environment
-
-provider_tiles_directory=/srv/provider-dashboard/tiles
-find "$provider_tiles_directory" -maxdepth 1 -type f -name '*.pmtiles' -print -quit | grep --quiet . || fail 'No complete provider PMTiles archive is available for backup.'
 
 install -d -m 0700 "$backup_work_directory" "$RESTIC_CACHE_DIR"
 exec 9>"$backup_lock_file"
@@ -39,7 +36,7 @@ for stalwart_volume in "${stalwart_volumes[@]}"; do
 done
 
 rm -rf -- "$backup_snapshot_directory"
-source_allocated_bytes=$(du --summarize --block-size=1 /etc/cookai-mail "$COMPOSE_DIRECTORY" "$provider_tiles_directory" "${volume_mountpoints[@]}" | awk '{ total += $1 } END { print total + 0 }')
+source_allocated_bytes=$(du --summarize --block-size=1 /etc/cookai-mail "$COMPOSE_DIRECTORY" "${volume_mountpoints[@]}" | awk '{ total += $1 } END { print total + 0 }')
 available_bytes=$(df --output=avail --block-size=1 "$backup_work_directory" | tail --lines=1 | tr --delete ' ')
 minimum_headroom_bytes=$((512 * 1024 * 1024))
 percentage_headroom_bytes=$((source_allocated_bytes / 10))
@@ -52,7 +49,6 @@ required_bytes=$((source_allocated_bytes + minimum_headroom_bytes))
 install -d -m 0700 \
 	"$backup_snapshot_directory/etc/cookai-mail" \
 	"$backup_snapshot_directory/opt/cookai-mail" \
-	"$backup_snapshot_directory/srv/provider-dashboard/tiles" \
 	"$backup_snapshot_directory/volumes"
 
 stalwart_restart_required=false
@@ -120,7 +116,6 @@ sync_all_sources() {
 	fi
 	sync_tree /etc/cookai-mail "$backup_snapshot_directory/etc/cookai-mail" "$copy_mode"
 	sync_tree "$COMPOSE_DIRECTORY" "$backup_snapshot_directory/opt/cookai-mail" "$copy_mode" --exclude=/.git/
-	sync_tree "$provider_tiles_directory" "$backup_snapshot_directory/srv/provider-dashboard/tiles" "$copy_mode" --exclude='*.partial' --exclude='.*.chunks/'
 	for logical_volume in "${logical_volumes[@]}"; do
 		copy_mode=strict
 		if [[ $warm_copy == true ]]; then
@@ -157,7 +152,6 @@ printf '%s\n' "${logical_volumes[@]}" | jq \
 	--arg compose_sha256 "$compose_sha256" \
 	--arg deployment_sha256 "$deployment_sha256" \
 	--argjson stalwart_was_running "$stalwart_was_running" \
-	--argjson provider_tiles true \
 	'{
 		schema: 1,
 		created_at: $created_at,
@@ -166,7 +160,6 @@ printf '%s\n' "${logical_volumes[@]}" | jq \
 		compose_sha256: $compose_sha256,
 		deployment_sha256: $deployment_sha256,
 		stalwart_was_running: $stalwart_was_running,
-		provider_tiles: $provider_tiles,
 		volumes: (split("\n") | map(select(length > 0)))
 	}' >"$backup_snapshot_directory/manifest.json"
 
